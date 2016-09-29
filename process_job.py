@@ -10,9 +10,11 @@ for download in [app_properties_s3_url, target_zip_s3_url]:
     cmd = ['aws', 's3', 'cp', download, '.']
     subprocess.check_call(cmd)
 
+os.environ["SPARK_HOME"] = r"/usr/lib/spark"
+
 # Set PYTHONPATH for Spark
-os.environ["SPARK_HOME"] = "/usr/lib/spark"
-os.environ['PYTHONPATH'] = "/usr/lib/spark/python/:/usr/lib/spark/python/lib/py4j-src.zip:python"
+for path in [r'/usr/lib/spark/python/', r'/usr/lib/spark/python/lib/py4j-src.zip']:
+    sys.path.append(path)
 
 # unzip our jars
 subprocess.check_call(['unzip', '-o', 'target.zip'])
@@ -28,22 +30,23 @@ pip_cmd += ['--jars', r'target/libs/jts-1.13.jar', 'target/spark-pip-0.1.jar']
 
 subprocess.check_call(pip_cmd)
 
+# Summarize results
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 
 sc = SparkContext()
 sqlContext = SQLContext(sc)
 
-df = pyspark.read.csv('hdfs:///user/hadoop/output/', sep=',', inferSchema=True)
+df = sqlContext.read.csv('hdfs:///user/hadoop/output/', sep=',', inferSchema=True)
 df.registerTempTable("my_table")
 
 # grab SQL query from properties file
 with open('application.properties', 'r') as readfile:
     for line in readfile:
         if line[0:9] == 'sql.query':
-            query = line.split('=')[1]
+            query = line.split('=')[1].strip()
         if line[0:9] == 's3.output':
-            s3_output_path = line.split('=')[1]
+            s3_output_path = line.split('=')[1].strip()
 
 query1 = sqlContext.sql(query)
 local_csv = r'/home/hadoop/query1.csv'

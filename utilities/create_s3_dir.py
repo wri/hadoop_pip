@@ -40,15 +40,19 @@ def write_properties(config_file, data_dir, s3_url):
 
     output_s3 = '{0}/{1}'.format(s3_url, 'output.csv')
 
-    with open(properties_file, 'wb') as propfile:
-        propfile.write('spark.app.name=YARN Points in World\n')
-        propfile.write('s3.output={0}'.format(output_s3))
+    if config_dict:
 
-        for section, section_dict in config_dict.iteritems():
-            propfile.write('\n#')
+        with open(properties_file, 'wb') as propfile:
+            propfile.write('spark.app.name=YARN Points in World\n')
+            propfile.write('s3.output={0}'.format(output_s3))
 
-            for key, value in section_dict.iteritems():
-                propfile.write('\n{0}.{1}={2}'.format(section, key, value))
+            for section, section_dict in config_dict.iteritems():
+                propfile.write('\n#')
+
+                for key, value in section_dict.iteritems():
+                    propfile.write('\n{0}.{1}={2}'.format(section, key, value))
+    else:
+        raise ValueError('Unable to find config file {0}'.format(config_file))
 
 
 def copy_process_jobs(root_dir, data_dir):

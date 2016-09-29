@@ -11,16 +11,18 @@ args = parser.parse_args()
 s3_app_folder = create_s3_dir.create(args.config)
 
 # Start emr and wait until it's read
-cluster_id = emr.start(s3_app_folder, instance_count=1)
+cluster_id = emr.start(s3_app_folder)
 
 step_id = emr.add_step(cluster_id, s3_app_folder)
 
 for i in range(0, 1000):
     step_status = emr.monitor_step(cluster_id, step_id)
 
-    if step_status == "COMPLETED":
+    if step_status not in ["PENDING", "RUNNING"]:
         break
     else:
         time.sleep(60)
+
+    print 'Step {0} finished with status {1}'.format(step_id, step_status)
 
 emr.terminate(cluster_id)
