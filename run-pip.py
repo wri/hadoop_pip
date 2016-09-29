@@ -1,28 +1,26 @@
 import argparse
+import time
 
-from utilities import aws, util
+from utilities import emr, create_s3_dir
 
 parser = argparse.ArgumentParser(description='Run point and polygon using AWS EMR')
-parser.add_argument('--config', '-c', nargs='+', help='config file of parameters', required=True)
+parser.add_argument('--config', '-c', help='config file of parameters', required=True)
 args = parser.parse_args()
 
-config_dict = util.read_config(args.config)
+# Write application.properties, bootstrap.sh, and process_job.py to s3_app_folder
+s3_app_folder = create_s3_dir.create(args.config)
 
 # Start emr and wait until it's read
-cluster_id = aws.start_emr(instance_count=1)
+cluster_id = emr.start(s3_app_folder, instance_count=1)
 
-# create an S3 dir with guid
+step_id = emr.add_step(cluster_id, s3_app_folder)
 
-# write new application.properties
+for i in range(0, 1000):
+    step_status = emr.monitor_step(cluster_id, step_id)
 
-# add step with process stop and application.properties path argument
-# on the EMR machine, process_jobs.py goes and gets application.properties, reads info, starts the job
-# also reads extra stuff from application.properties-- sql statements etc for later in the process
+    if step_status == "COMPLETED":
+        break
+    else:
+        time.sleep(60)
 
-# check on step every minute
-# once it's done, add another step or terminate
-
-# post process results
-# also in glad.cfg -- include postprocessing steps -- summarize data and push to api
-
-
+emr.terminate(cluster_id)

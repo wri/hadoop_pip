@@ -1,22 +1,5 @@
 import json
 import subprocess
-from ConfigParser import SafeConfigParser
-
-
-def read_config(config):
-
-    parser = SafeConfigParser()
-    parser.read(config)
-
-    config_dict = {}
-
-    for section in parser.sections():
-        config_dict[section] = {}
-
-        for option in parser.options(section):
-            config_dict[section][option] = parser.get(section, option)
-
-    return
 
 
 def run_subprocess(cmd):
@@ -35,6 +18,9 @@ def run_subprocess(cmd):
 
 def response_to_dict(subprocess_list):
 
-    to_dict = json.load(''.join(subprocess_list))
+    print 'Subprocess response: ' + str(subprocess_list)
+    print '***************'
+
+    to_dict = json.loads(''.join(subprocess_list))
 
     return to_dict
