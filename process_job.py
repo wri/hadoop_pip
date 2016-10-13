@@ -24,7 +24,7 @@ subprocess.check_call(['unzip', '-o', 'target.zip'])
 subprocess.call(['hdfs', 'dfs', '-rm', '-r', 'output'])
 
 pip_cmd = ['spark-submit', '--master', 'yarn-client', '--driver-memory', '16g']
-pip_cmd += ['--executor-memory', '2g', '--executor-cores', '1']
+pip_cmd += ['--executor-memory', '4g', '--executor-cores', '1']
 pip_cmd += ['--driver-java-options', '-server -Xms1g']
 pip_cmd += ['--jars', r'target/libs/jts-1.13.jar', 'target/spark-pip-0.1.jar']
 

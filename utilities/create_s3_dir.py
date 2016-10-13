@@ -54,6 +54,8 @@ def write_properties(config_file, data_dir, s3_url):
     else:
         raise ValueError('Unable to find config file {0}'.format(config_file))
 
+    return output_s3
+
 
 def copy_process_jobs(root_dir, data_dir):
 
@@ -74,7 +76,7 @@ def create(config_file):
 
     s3_url = r's3://gfw2-data/alerts-tsv/hadoop-jobs/{0}'.format(guid)
 
-    write_properties(config_file, data_dir, s3_url)
+    s3_output = write_properties(config_file, data_dir, s3_url)
 
     copy_process_jobs(root_dir, data_dir)
 
@@ -83,4 +85,4 @@ def create(config_file):
     cmd = ['aws', 's3', 'cp', '--recursive', data_dir, s3_url]
     subprocess.check_call(cmd)
 
-    return s3_url
+    return s3_url, s3_output
