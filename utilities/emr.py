@@ -1,6 +1,6 @@
 import subprocess
 
-from utilities import util
+import util
 
 
 def start(s3_app_folder, instance_type='m3.xlarge', instance_count=3):

@@ -26,9 +26,13 @@ def run(config_file_list):
 
             if step_status == 'COMPLETED':
                 output_list.append(s3_output_path)
+
+                # Sending a second step immediately makes it hang on the second, apparently
+                time.sleep(60)
                 break
 
             elif step_status not in ["PENDING", "RUNNING"]:
+                output_list.append(None)
                 break
 
             else:
