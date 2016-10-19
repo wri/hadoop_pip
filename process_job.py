@@ -57,3 +57,5 @@ with open(local_csv, 'w') as output:
         csv_writer.writerow(out_row)
 
 subprocess.check_call(['aws', 's3', 'cp', local_csv, s3_output_path])
+
+sc.stop()
