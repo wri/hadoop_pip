@@ -7,12 +7,12 @@ from utilities import emr, create_s3_dir
 def run(config_file_list):
 
     cluster_id = None
-    output_list = []
+    all_steps_output_list = []
 
     for config in config_file_list:
 
-        # Write application.properties, bootstrap.sh, and process_job.py to s3_app_folder
-        s3_app_folder, s3_output_path = create_s3_dir.create(config)
+        # # Write application.properties, bootstrap.sh, and process_job.py to s3_app_folder
+        s3_app_folder, s3_output_list = create_s3_dir.create(config)
 
         # If we don't have a cluster yet, start one
         if not cluster_id:
@@ -25,14 +25,14 @@ def run(config_file_list):
             step_status = emr.monitor_step(cluster_id, step_id)
 
             if step_status == 'COMPLETED':
-                output_list.append(s3_output_path)
+                all_steps_output_list.append(s3_output_list)
 
                 # Sending a second step immediately makes it hang on the second, apparently
                 time.sleep(60)
                 break
 
             elif step_status not in ["PENDING", "RUNNING"]:
-                output_list.append(None)
+                all_steps_output_list.append(None)
                 break
 
             else:
@@ -42,7 +42,7 @@ def run(config_file_list):
 
     emr.terminate(cluster_id)
 
-    return output_list
+    return all_steps_output_list
 
 
 if __name__ == '__main__':
