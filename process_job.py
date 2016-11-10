@@ -4,7 +4,7 @@ import csv
 import sys
 
 app_properties_s3_url = sys.argv[1]
-target_zip_s3_url = r's3://gfw2-data/alerts-tsv/target.zip'
+target_zip_s3_url = r's3://gfw2-data/alerts-tsv/target_0.3.zip'
 
 for download in [app_properties_s3_url, target_zip_s3_url]:
     cmd = ['aws', 's3', 'cp', download, '.']
@@ -17,16 +17,15 @@ for path in [r'/usr/lib/spark/python/', r'/usr/lib/spark/python/lib/py4j-src.zip
     sys.path.append(path)
 
 # unzip our jars
-subprocess.check_call(['unzip', '-o', 'target.zip'])
+subprocess.check_call(['unzip', '-o', 'target_0.3.zip'])
 
 # clear out the output dir in hdfs just in case
 # don't check_call, assume if an error that it doesn't exist
 subprocess.call(['hdfs', 'dfs', '-rm', '-r', 'output'])
 
-pip_cmd = ['spark-submit', '--master', 'yarn-client', '--driver-memory', '16g']
-pip_cmd += ['--executor-memory', '4g', '--executor-cores', '1']
-pip_cmd += ['--driver-java-options', '-server -Xms1g']
-pip_cmd += ['--jars', r'target/libs/jts-1.13.jar', 'target/spark-pip-0.1.jar']
+pip_cmd = ['spark-submit', '--master', 'yarn']
+pip_cmd += ['--executor-memory', '9g']
+pip_cmd += ['--jars', r'target/libs/jts-core-1.14.0.jar', 'target/spark-pip-0.3.jar']
 
 subprocess.check_call(pip_cmd)
 
