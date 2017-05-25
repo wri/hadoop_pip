@@ -8,7 +8,7 @@ def start(s3_app_folder, instance_type='m3.xlarge', instance_count=3):
     bootstrap_script = r"{0}/bootstrap.sh".format(s3_app_folder)
 
     cmd = ['aws', 'emr', 'create-cluster', '--name', 'Spark PIP cluster']
-    cmd += ['--release-label', 'emr-5.0.0', '--applications', 'Name=Spark']
+    cmd += ['--release-label', 'emr-5.5.0', '--applications', 'Name=Spark', 'Name=Hadoop']
     cmd += ['--ec2-attributes', 'KeyName=chofmann-wri']
     cmd += ['--instance-type', instance_type, '--instance-count', str(instance_count)]
     cmd += ['--use-default-roles', '--region', 'us-east-1']

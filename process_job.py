@@ -2,13 +2,8 @@ import os
 import subprocess
 import csv
 import sys
+import datetime
 
-app_properties_s3_url = sys.argv[1]
-target_zip_s3_url = r's3://gfw2-data/alerts-tsv/target_0.3.zip'
-
-for download in [app_properties_s3_url, target_zip_s3_url]:
-    cmd = ['aws', 's3', 'cp', download, '.']
-    subprocess.check_call(cmd)
 
 os.environ["SPARK_HOME"] = r"/usr/lib/spark"
 
@@ -16,77 +11,160 @@ os.environ["SPARK_HOME"] = r"/usr/lib/spark"
 for path in [r'/usr/lib/spark/python/', r'/usr/lib/spark/python/lib/py4j-src.zip']:
     sys.path.append(path)
 
-# unzip our jars
-subprocess.check_call(['unzip', '-o', 'target_0.3.zip'])
-
-# clear out the output dir in hdfs just in case
-# don't check_call, assume if an error that it doesn't exist
-subprocess.call(['hdfs', 'dfs', '-rm', '-r', 'output'])
-
-pip_cmd = ['spark-submit', '--master', 'yarn']
-pip_cmd += ['--executor-memory', '9g']
-pip_cmd += ['--jars', r'target/libs/jts-core-1.14.0.jar', 'target/spark-pip-0.3.jar']
-
-subprocess.check_call(pip_cmd)
-
-# Summarize results
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
+from pyspark.sql.functions import udf
+from pyspark.sql.types import *
 
-sc = SparkContext()
-sqlContext = SQLContext(sc)
 
-df = sqlContext.read.csv('hdfs:///user/hadoop/output/', sep=',', inferSchema=True)
-df.registerTempTable("my_table")
+def main():
 
-query_dict = {}
+    run_spark_pip()
 
-# grab SQL query from properties file
-with open('application.properties', 'r') as readfile:
-    for line in readfile:
-        if line[0:3] == 'sql':
+    query_dict, full_export = build_query_dict()
 
-            # Grab the digit from the string 'query1' or query22 or whatever
-            query_id = ''.join([char for char in line.split('=')[0] if char.isdigit()])
-            query_int = int(query_id)
+    summarize_results(query_dict, full_export)
 
-            # Grab whatever this key is equal to
-            value = '='.join(line.split('=')[1:]).strip()
 
-            if line[0:9] == 'sql.query':
-                param = 'sql'
-            elif line[0:10] == 'sql.output':
-                param = 's3_output'
-            else:
-                param = 'header_row'
+def run_spark_pip():
 
-            # Build a dict of queries, each having an {id: {sql: '', 's3_output': ''}}
+    app_properties_s3_url = sys.argv[1]
+    target_zip_s3_url = r's3://gfw2-data/alerts-tsv/target_0.3.zip'
+
+    for download in [app_properties_s3_url, target_zip_s3_url]:
+        cmd = ['aws', 's3', 'cp', download, '.']
+        subprocess.check_call(cmd)
+
+    # unzip our jars
+    subprocess.check_call(['unzip', '-o', 'target_0.3.zip'])
+
+    # clear out the output dir in hdfs just in case
+    # don't check_call, assume if an error that it doesn't exist
+    subprocess.call(['hdfs', 'dfs', '-rm', '-r', 'output'])
+
+    pip_cmd = ['spark-submit', '--master', 'yarn']
+    pip_cmd += ['--executor-memory', '9g']
+    pip_cmd += ['--jars', r'target/libs/jts-core-1.14.0.jar', 'target/spark-pip-0.3.jar']
+
+    subprocess.check_call(pip_cmd)
+
+
+def build_query_dict():
+
+    query_dict = {}
+    full_export = None
+
+    # grab SQL query from properties file
+    with open('application.properties', 'r') as readfile:
+        for line in readfile:
+            if line[0:3] == 'sql':
+
+                # Grab the digit from the string 'query1' or query22 or whatever
+                query_id = ''.join([char for char in line.split('=')[0] if char.isdigit()])
+                query_int = int(query_id)
+
+                # Grab whatever this key is equal to
+                value = '='.join(line.split('=')[1:]).strip()
+
+                if line[0:9] == 'sql.query':
+                    param = 'sql'
+                elif line[0:10] == 'sql.output':
+                    param = 's3_output'
+                else:
+                    param = 'header_row'
+
+                # Build a dict of queries, each having an {id: {sql: '', 's3_output': ''}}
+                try:
+                    query_dict[query_int][param] = value
+                except KeyError:
+                    query_dict[query_int] = {param: value}
+
+            if line[0:11] == 'export_type':
+                full_export = '='.join(line.split('=')[1:]).strip()
+
+    return query_dict, full_export
+
+
+def summarize_results(query_dict, full_export):
+
+    sc = SparkContext()
+    sqlContext = SQLContext(sc)
+
+    df = sqlContext.read.csv('hdfs:///user/hadoop/output/', sep=',', inferSchema=True)
+    df.registerTempTable("my_table")
+
+    for qry_id, qry_params in query_dict.iteritems():
+
+        spark_query = sqlContext.sql(qry_params['sql'])
+
+        local_csv = r'/home/hadoop/query1.csv'
+
+        with open(local_csv, 'w') as output:
+            csv_writer = csv.writer(output)
+
+            # Write CSV header if it exists
             try:
-                query_dict[query_int][param] = value
+                header_text = qry_params['header_row']
+                header_row = [s.strip() for s in header_text.split(',')]
+                csv_writer.writerow(header_row)
+
             except KeyError:
-                query_dict[query_int] = {param: value}
+                pass
 
-for qry_id, qry_params in query_dict.iteritems():
+            for out_row in spark_query.collect():
+                csv_writer.writerow(out_row)
 
-    spark_query = sqlContext.sql(qry_params['sql'])
+        subprocess.check_call(['aws', 's3', 'cp', local_csv, qry_params['s3_output']])
 
-    local_csv = r'/home/hadoop/query1.csv'
+        # delete this to save space-- not much room in hadoop machine local disk
+        os.remove(local_csv)
 
-    with open(local_csv, 'w') as output:
-        csv_writer = csv.writer(output)
+    if full_export:
 
-        # Write CSV header if it exists
-        try:
-            header_text = qry_params['header_row']
-            header_row = [s.strip() for s in header_text.split(',')]
-            csv_writer.writerow(header_row)
+        today = datetime.datetime.today().strftime('%Y%m%d')
 
-        except KeyError:
-            pass
+        if full_export == 'glad':
 
-        for out_row in spark_query.collect():
-            csv_writer.writerow(out_row)
+            # temporary given that only PER is updating
+            filtered = df.filter((df['_c3'] > 2015) & (df['_c8'] == 'PER'))
 
-    subprocess.check_call(['aws', 's3', 'cp', local_csv, qry_params['s3_output']])
+            udfValueToCategory = udf(value_to_category, StringType())
+            df_with_cat = filtered.withColumn("category", udfValueToCategory("_c2"))
 
-sc.stop()
+            # filter DF to select only columns of interest
+            column_aois = [0, 1, 2, 3, 4, 8, 9, 10, 11]
+            df_final = df_with_cat.select(*(df_with_cat.columns[i] for i in column_aois))
+
+            s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-{}/'.format(today)
+            s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-summary-{}/'.format(today)
+
+        else:
+            df_final = df
+
+            s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-terrai-{}/'.format(today)
+            s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-terrai-summary-{}/'.format(today)
+
+        # write hadoop output in parts to S3
+        df_final.write.csv(s3_temp_dir)
+
+        # group all output files into one
+        s3_cmd = ['s3-dist-cp', '--src', s3_temp_dir, '--dest', s3_dest_dir, '--groupBy', '.*(part-r*).*']
+        subprocess.check_call(s3_cmd)
+
+        # remove the temp directory
+        remove_temp_cmd = ['aws', 's3', 'rm', s3_temp_dir, '--recursive']
+        subprocess.check_call(remove_temp_cmd)
+
+    sc.stop()
+
+
+def value_to_category(value):
+    if value == 2:
+        return 'unconfirmed'
+    elif value == 3:
+        return 'confirmed'
+    else:
+        return '-9999'
+
+if __name__ == '__main__':
+    main()
