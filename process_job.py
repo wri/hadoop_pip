@@ -138,11 +138,12 @@ def summarize_results(query_dict, full_export):
             s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-{}/'.format(today)
             s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-summary-{}/'.format(today)
 
+        # could be forma or terrai
         else:
             df_final = df
 
-            s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-terrai-{}/'.format(today)
-            s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-terrai-summary-{}/'.format(today)
+            s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-{}/'.format(full_export, today)
+            s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-summary-{}/'.format(full_export, today)
 
         # write hadoop output in parts to S3
         df_final.write.csv(s3_temp_dir)
