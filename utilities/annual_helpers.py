@@ -1,7 +1,8 @@
-from boto.s3.connection import S3Connection
 import shutil
 import os
 import subprocess
+from boto.s3.connection import S3Connection
+
 
 conn = S3Connection(host="s3.amazonaws.com")
 bucket = conn.get_bucket('gfw2-data')
