@@ -3,25 +3,30 @@ import os
 import subprocess
 from boto.s3.connection import S3Connection
 
+import calc_tsv_extent
+
 
 conn = S3Connection(host="s3.amazonaws.com")
 bucket = conn.get_bucket('gfw2-data')
 
 
 def download_jar():
+
+    # check first to see if the target folder is already there:
+    if not os.path.exists('target'):
     
-    jar_file = 's3://gfw2-data/alerts-tsv/batch-processing/target_0.3.3.zip'
-             
-    cmd = ['aws', 's3', 'cp', jar_file, '.']
-    subprocess.check_call(cmd)
-    
-    jar_name = os.path.basename(jar_file)
-    cmd = ['unzip', jar_name]
-    subprocess.check_call(cmd)
+        jar_file = 's3://gfw2-data/alerts-tsv/batch-processing/target_0.3.3.zip'
+                 
+        cmd = ['aws', 's3', 'cp', jar_file, '.']
+        subprocess.check_call(cmd)
+        
+        jar_name = os.path.basename(jar_file)
+        cmd = ['unzip', jar_name]
+        subprocess.check_call(cmd)
         
     
 def write_props(analysis_type, points_path, poly_name): 
-    four_poly_fields = ['bra_biomes_int_gadm28.tsv', 'fao_ecozones_bor_tem_tro_sub_int_diss_gadm28.tsv', 'wdpa_keep_wdpaid_diss_int_gadm28.tsv']
+    four_poly_fields = ['bra_biomes_int_gadm28.tsv', 'fao_ecozones_bor_tem_tro_sub_int_diss_gadm28_large.tsv', 'wdpa_keep_wdpaid_diss_int_gadm28_large.tsv']
     
     poly_fields = '1,2,3'
     
@@ -46,6 +51,12 @@ polygons.fields={3}
 analysis.type={4}
     """.format(points_path, points_fields, poly_name, poly_fields, analysis_type)
     
+    # if the geometry of interest isn't flagged as "large",
+    # get the extent of data (using ogrinfo) and tack it
+    # on to application_properties
+    if '_large' not in poly_name:
+        application_props += calc_tsv_extent.extent_props_str(poly_name)
+        
     with open("application.properties", 'w') as app_props:
         app_props.write(application_props)
         
