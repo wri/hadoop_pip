@@ -4,4 +4,6 @@ data/*
 *.pyc
 *.properties
 *.out
+*.crc
+*.vrt
 target*

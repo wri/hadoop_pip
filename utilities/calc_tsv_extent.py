@@ -31,7 +31,7 @@ extent.ymax={}
 
 def extent_str_to_ints(extent_str):
 
-    extent_split = extent_str.split('-')
+    extent_split = extent_str.split(' - ')
     
     # extract corner coords, adding 0.5 degree buffer
     min_x, min_y = unpack_extent_tuple(extent_split[0], -0.25)
