@@ -54,7 +54,7 @@ analysis.type={4}
     # if the geometry of interest isn't flagged as "large",
     # get the extent of data (using ogrinfo) and tack it
     # on to application_properties
-    if '_large' not in poly_name:
+    if '_large.tsv' not in poly_name:
         application_props += calc_tsv_extent.extent_props_str(poly_name)
         
     with open("application.properties", 'w') as app_props:
