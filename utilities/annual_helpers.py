@@ -73,13 +73,13 @@ def gen_ns_list(poly_name):
     # otherwise get the extent of the poly layer and figure out the
     # ns_list from that
     else:
-        min_x, min_y, max_x, max_y = calc_tsv_extent.get_extent(s3_path)
+        min_x, min_y, max_x, max_y = calc_tsv_extent.get_extent(poly_name)
 
         dissolved_lat_geojson = r'/vsicurl/http://gfw2-data.s3.amazonaws.com/alerts-tsv/gis_source/lossdata_lat_diss.geojson'
 
         # build ogrinfo, including spat to refine extent
         cmd = ['ogrinfo', dissolved_lat_geojson, '-al', '-spat']
-        cmd += [min_x, min_y, max_x, max_y]
+        cmd += [str(min_x), str(min_y), str(max_x), str(max_y)]
 
         # run ogrinfo and grab all responses with lat_id in it, except
         # for the first line, which just says that lat_id is a field
@@ -87,7 +87,7 @@ def gen_ns_list(poly_name):
         lat_list = [x for x in response_list if 'lat_id' in x.lower()][1:]
 
         # split line responses from lat_id (String) = 10N to 10N, etc
-        ns_list = [x.split(' = ')[1] for x in l]
+        ns_list = [x.split(' = ')[1] for x in lat_list]
 
     return ns_list
 
@@ -103,7 +103,7 @@ def call_pip():
 
 def check_output_exists(analysis_type, geom_csv_name, ns_tile=None):
 
-    if analysis_type == 'extent'
+    if analysis_type == 'extent':
         folder_name = os.path.splitext(geom_csv_name)[0]
         prefix = r'extent/{}/'.format(folder_name)
         out_csv = ns_tile + '.csv'
