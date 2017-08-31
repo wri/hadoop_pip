@@ -14,28 +14,28 @@ def download_jar():
 
     # check first to see if the target folder is already there:
     if not os.path.exists('target'):
-    
+
         jar_file = 's3://gfw2-data/alerts-tsv/batch-processing/target_0.3.3.zip'
-                 
+
         cmd = ['aws', 's3', 'cp', jar_file, '.']
         subprocess.check_call(cmd)
-        
+
         jar_name = os.path.basename(jar_file)
         cmd = ['unzip', jar_name]
         subprocess.check_call(cmd)
-        
-    
-def write_props(analysis_type, points_path, poly_name): 
+
+
+def write_props(analysis_type, points_path, poly_name):
     four_poly_fields = ['bra_biomes_int_gadm28.tsv', 'fao_ecozones_bor_tem_tro_sub_int_diss_gadm28_large.tsv', 'wdpa_keep_wdpaid_diss_int_gadm28_large.tsv']
-    
+
     poly_fields = '1,2,3'
-    
+
     if poly_name in four_poly_fields:
         poly_fields += ',4'
-        
+
     points_dict = {'loss':'0,1,2,3,4,5', 'extent':'0,1,2,3'}
     points_fields = points_dict[analysis_type]
-    
+
     application_props = """
 spark.app.name=YARN Points in World
 output.path=hdfs:///user/hadoop/output
@@ -50,26 +50,48 @@ polygons.wkt=0
 polygons.fields={3}
 analysis.type={4}
     """.format(points_path, points_fields, poly_name, poly_fields, analysis_type)
-    
+
     # if the geometry of interest isn't flagged as "large",
     # get the extent of data (using ogrinfo) and tack it
     # on to application_properties
     if '_large.tsv' not in poly_name:
         application_props += calc_tsv_extent.extent_props_str(poly_name)
-        
+
     with open("application.properties", 'w') as app_props:
         app_props.write(application_props)
-        
-  
-def gen_ns_list():
-    # iterate over the 00N* bc extent can't run all the tiles at once..
-    north_list = ['{:02d}N'.format(x) for x in range(0, 90, 10)]
-    south_list = ['{:02d}S'.format(x) for x in range(10, 60, 10)]
-    ns_list = north_list +south_list    
-    
+
+
+def gen_ns_list(poly_name):
+
+    # if we have to process all latitude bands (e.g. 00N, 10N etc)
+    if '_large.tsv' in poly_name:
+        # iterate over the 00N* bc extent can't run all the tiles at once..
+        north_list = ['{:02d}N'.format(x) for x in range(0, 90, 10)]
+        south_list = ['{:02d}S'.format(x) for x in range(10, 60, 10)]
+        ns_list = north_list + south_list
+
+    # otherwise get the extent of the poly layer and figure out the
+    # ns_list from that
+    else:
+        min_x, min_y, max_x, max_y = calc_tsv_extent.get_extent(s3_path)
+
+        dissolved_lat_geojson = r'/vsicurl/http://gfw2-data.s3.amazonaws.com/alerts-tsv/gis_source/lossdata_lat_diss.geojson'
+
+        # build ogrinfo, including spat to refine extent
+        cmd = ['ogrinfo', dissolved_lat_geojson, '-al', '-spat']
+        cmd += [min_x, min_y, max_x, max_y]
+
+        # run ogrinfo and grab all responses with lat_id in it, except
+        # for the first line, which just says that lat_id is a field
+        response_list = calc_tsv_extent.run_subprocess(cmd)
+        lat_list = [x for x in response_list if 'lat_id' in x.lower()][1:]
+
+        # split line responses from lat_id (String) = 10N to 10N, etc
+        ns_list = [x.split(' = ')[1] for x in l]
+
     return ns_list
 
-    
+
 def call_pip():
     subprocess.call(['hdfs', 'dfs', '-rm', '-r', 'output'])
     pip_cmd = ['spark-submit', '--master', 'yarn']
@@ -78,36 +100,35 @@ def call_pip():
 
     subprocess.check_call(pip_cmd)
 
-    
+
 def check_output_exists(analysis_type, out_csv):
     full_path_list = [key.name for key in bucket.list(prefix='alerts-tsv/output2016/{}/'.format(analysis_type))]
     filename_only_list = [x.split('/')[-1] for x in full_path_list]
-    
-    return out_csv in filename_only_list
-           
 
-def upload_to_s3(analysis_type, tsv_name):
+    return out_csv in filename_only_list
+
+
+def upload_to_s3(analysis_type, tsv_name, ns_tile_name=None):
     cmd = ['hdfs', 'dfs', '-ls', 'output/']
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     out, err = p.communicate()
 
     if "_SUCCESS" not in out:
-        raise ValueError("process failed, success file not found") 
+        raise ValueError("process failed, success file not found")
 
-    csv_name = tsv_name.replace(".tsv", ".csv")    
-    
+    basename = os.path.splitext(tsv_name)[0]
+
+    # Extent outputs should be <geom name>/10N.csv, 20N.csv etc
+    if analysis_type == 'extent':
+        csv_name = ns_tile_name + '.csv'
+        out_path = r'extent/{}/'.format(basename)
+    else:
+        csv_name = basename + '.csv'
+        out_path = r'loss/'
+
     cmd = ['hdfs', 'dfs', '-getmerge', 'output/', csv_name]
     subprocess.check_call(cmd)
-    
-    tsv_outputs = 's3://gfw2-data/alerts-tsv/output2016/{}/'.format(analysis_type)
+
+    tsv_outputs = 's3://gfw2-data/alerts-tsv/output2016/{}'.format(out_path)
     cmd = ['aws', 's3', 'mv', csv_name, tsv_outputs]
     subprocess.check_call(cmd)
-    
-
-
-            
-        
-        
-        
-        
-  
