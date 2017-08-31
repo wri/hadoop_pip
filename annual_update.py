@@ -22,14 +22,14 @@ for tsv in tsv_list:
     tsv_name = tsv.split("/")[-1]
     csv_name = tsv_name.replace(".tsv", ".csv")
 
-    # if there is not a csv output already in the file system
-    if not annual_helpers.check_output_exists(analysis_type, csv_name):
+    if analysis_type == 'extent':
 
-        if analysis_type == 'extent':
+        ns_list = annual_helpers.gen_ns_list(tsv_name)
 
-            ns_list = annual_helpers.gen_ns_list(tsv_name)
+        for ns_tile in ns_list:
 
-            for ns_tile in ns_list:
+            # if there is not a csv output already in the file system
+            if not annual_helpers.check_output_exists(analysis_type, csv_name, ns_tile):
                 extent_points_path = 's3a://gfw2-data/alerts-tsv/extent_2000/{}*'.format(ns_tile)
                 annual_helpers.write_props(analysis_type, extent_points_path, tsv_name)
 
@@ -37,7 +37,10 @@ for tsv in tsv_list:
 
                 annual_helpers.upload_to_s3(analysis_type, tsv_name, ns_tile)
 
-        else:
+    else:
+
+        # if there is not a csv output already in the file system
+        if not annual_helpers.check_output_exists(analysis_type, csv_name):
             loss_points_path = 's3a://gfw2-data/alerts-tsv/loss_2016/'
             annual_helpers.write_props(analysis_type, loss_points_path, tsv_name)
 
