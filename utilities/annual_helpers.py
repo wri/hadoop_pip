@@ -63,31 +63,23 @@ analysis.type={4}
 
 def gen_ns_list(poly_name):
 
-    # if we have to process all latitude bands (e.g. 00N, 10N etc)
-    if '_large.tsv' in poly_name:
-        # iterate over the 00N* bc extent can't run all the tiles at once..
-        north_list = ['{:02d}N'.format(x) for x in range(0, 90, 10)]
-        south_list = ['{:02d}S'.format(x) for x in range(10, 60, 10)]
-        ns_list = north_list + south_list
+    # checking extent for all input polygons, given that we have
+    # to go 10 by 10 degrees
+    min_x, min_y, max_x, max_y = calc_tsv_extent.get_extent(poly_name)
 
-    # otherwise get the extent of the poly layer and figure out the
-    # ns_list from that
-    else:
-        min_x, min_y, max_x, max_y = calc_tsv_extent.get_extent(poly_name)
+    dissolved_lat_geojson = r'/vsicurl/http://gfw2-data.s3.amazonaws.com/alerts-tsv/gis_source/lossdata_lat_diss.geojson'
 
-        dissolved_lat_geojson = r'/vsicurl/http://gfw2-data.s3.amazonaws.com/alerts-tsv/gis_source/lossdata_lat_diss.geojson'
+    # build ogrinfo, including spat to refine extent
+    cmd = ['ogrinfo', dissolved_lat_geojson, '-al', '-spat']
+    cmd += [str(min_x), str(min_y), str(max_x), str(max_y)]
 
-        # build ogrinfo, including spat to refine extent
-        cmd = ['ogrinfo', dissolved_lat_geojson, '-al', '-spat']
-        cmd += [str(min_x), str(min_y), str(max_x), str(max_y)]
+    # run ogrinfo and grab all responses with lat_id in it, except
+    # for the first line, which just says that lat_id is a field
+    response_list = calc_tsv_extent.run_subprocess(cmd)
+    lat_list = [x for x in response_list if 'lat_id' in x.lower()][1:]
 
-        # run ogrinfo and grab all responses with lat_id in it, except
-        # for the first line, which just says that lat_id is a field
-        response_list = calc_tsv_extent.run_subprocess(cmd)
-        lat_list = [x for x in response_list if 'lat_id' in x.lower()][1:]
-
-        # split line responses from lat_id (String) = 10N to 10N, etc
-        ns_list = [x.split(' = ')[1] for x in lat_list]
+    # split line responses from lat_id (String) = 10N to 10N, etc
+    ns_list = [x.split(' = ')[1] for x in lat_list]
 
     return ns_list
 
