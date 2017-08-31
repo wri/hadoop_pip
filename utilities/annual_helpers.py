@@ -26,7 +26,7 @@ def download_jar():
 
 
 def write_props(analysis_type, points_path, poly_name):
-    four_poly_fields = ['bra_biomes_int_gadm28.tsv', 'fao_ecozones_bor_tem_tro_sub_int_diss_gadm28_large.tsv', 'wdpa_keep_wdpaid_diss_int_gadm28_large.tsv']
+    four_poly_fields = ['bra_biomes_int_gadm28.tsv', 'fao_ecozones_bor_tem_tro_sub_int_diss_gadm28_large.tsv', 'wdpa_final_int_diss_wdpaid_gadm28_large.tsv']
 
     poly_fields = '1,2,3'
 
