@@ -8,7 +8,7 @@ bucket = conn.get_bucket('gfw2-data')
 
 #iterate over tsv files, like tsv folder files, and swaths of 00N - 80N 10S-50S... for extent
 parser = argparse.ArgumentParser()
-parser.add_argument('--analysis-type', '-a', required=True, choices=['extent', 'loss'])
+parser.add_argument('--analysis-type', '-a', required=True, choices=['extent', 'loss', 'gain'])
 args = parser.parse_args()
 analysis_type = args.analysis_type
 
@@ -41,8 +41,13 @@ for tsv in tsv_list:
 
         # if there is not a csv output already in the file system
         if not annual_helpers.check_output_exists(analysis_type, csv_name):
-            loss_points_path = 's3a://gfw2-data/alerts-tsv/loss_2016/'
-            annual_helpers.write_props(analysis_type, loss_points_path, tsv_name)
+        
+            if analysis_type == 'loss':
+                points_path = r's3a://gfw2-data/alerts-tsv/loss_2016/'
+            else:
+                points_path = r's3a://gfw2-data/alerts-tsv/gain_tiles/'
+                
+            annual_helpers.write_props(analysis_type, points_path, tsv_name)
 
             annual_helpers.call_pip()
 

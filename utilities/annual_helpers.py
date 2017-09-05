@@ -27,6 +27,12 @@ def download_jar():
 
 def write_props(analysis_type, points_path, poly_name):
     four_poly_fields = ['bra_biomes_int_gadm28.tsv', 'fao_ecozones_bor_tem_tro_sub_int_diss_gadm28_large.tsv', 'wdpa_final_int_diss_wdpaid_gadm28_large.tsv']
+    
+    # for our purposes, extent is the same as gain
+    # four input fields (x, y, value and area)
+    # and this is easier than editing the scala code to include a gain type
+    if analysis_type == 'gain':
+        analysis_type = 'extent'
 
     poly_fields = '1,2,3'
 
@@ -126,7 +132,7 @@ def upload_to_s3(analysis_type, tsv_name, ns_tile_name=None):
         out_path = r'extent/{}/'.format(basename)
     else:
         csv_name = basename + '.csv'
-        out_path = r'loss/'
+        out_path = r'{}/'.format(analysis_type)
 
     cmd = ['hdfs', 'dfs', '-getmerge', 'output/', csv_name]
     subprocess.check_call(cmd)
