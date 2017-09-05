@@ -108,7 +108,7 @@ def check_output_exists(analysis_type, geom_csv_name, ns_tile=None):
 
     else:
         out_csv = geom_csv_name
-        prefix = r'loss/'
+        prefix = r'{}/'.format(analysis_type)
 
     full_path_list = [key.name for key in bucket.list(prefix='alerts-tsv/output2016/{}'.format(prefix))]
     filename_only_list = [x.split('/')[-1] for x in full_path_list]
