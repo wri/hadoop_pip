@@ -125,22 +125,37 @@ def summarize_results(query_dict, full_export):
 
         if full_export == 'glad':
 
-            # temporary given that only PER is updating
-            filtered = df.filter((df['_c3'] > 2015) & (df['_c8'] == 'PER'))
+            # find date of day 180 days ago
+            today_date = datetime.date.today()
+            glad_back_date = today_date - datetime.timedelta(days=181)
+            glad_back_date_jd = glad_back_date.timetuple().tm_yday
+
+            # filtered = df.filter(df['_c3'] > 2016)
+
+            # check of that day is in the current year
+            if today_date.year == glad_back_date.year:
+                filtered = df.filter((df['_c8'] == 'gadm28') & (df['_c4'] > glad_back_date_jd))
+
+            # otherwise select all dates in the current year, and only those in previous year that are > the julian_day
+            else:
+                filtered = df.filter(
+                    ((df['_c8'] == 'gadm28') & (df['_c3'] == today_date.year - 1) & (df['_c4'] > glad_back_date_jd)) |
+                    ((df['_c8'] == 'gadm28') & (df['_c3'] == today_date.year))
+                )
 
             udfValueToCategory = udf(value_to_category, StringType())
             df_with_cat = filtered.withColumn("category", udfValueToCategory("_c2"))
 
             # filter DF to select only columns of interest
-            column_aois = [0, 1, 2, 3, 4, 8, 9, 10, 11]
+            column_aois = [0, 1, 2, 3, 4, 11, 12, 13, 14]
             df_final = df_with_cat.select(*(df_with_cat.columns[i] for i in column_aois))
 
             s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-{}/'.format(today)
             s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-summary-{}/'.format(today)
 
-        # could be forma or terrai
+        # terrai - polyname field is _c4 in this case
         else:
-            df_final = df
+            df_final = df.filter(df['_c4'] == 'gadm28')
 
             s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-{}/'.format(full_export, today)
             s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-summary-{}/'.format(full_export, today)
