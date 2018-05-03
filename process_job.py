@@ -15,15 +15,15 @@ from pyspark import SparkContext
 from pyspark.sql import SQLContext
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
-
+from pyspark.sql.functions import *
 
 def main():
 
     run_spark_pip()
 
-    query_dict, full_export = build_query_dict()
+    query_dict, analysis_name = build_query_dict()
 
-    summarize_results(query_dict, full_export)
+    summarize_results(query_dict, analysis_name)
 
 
 def run_spark_pip():
@@ -52,7 +52,7 @@ def run_spark_pip():
 def build_query_dict():
 
     query_dict = {}
-    full_export = None
+    analysis_name = None
 
     # grab SQL query from properties file
     with open('application.properties', 'r') as readfile:
@@ -79,18 +79,26 @@ def build_query_dict():
                 except KeyError:
                     query_dict[query_int] = {param: value}
 
-            if line[0:11] == 'export_type':
-                full_export = '='.join(line.split('=')[1:]).strip()
+            if line[0:13] == 'analysis.name':
+                analysis_name = '='.join(line.split('=')[1:]).strip()
 
-    return query_dict, full_export
+    return query_dict, analysis_name
 
 
-def summarize_results(query_dict, full_export):
+def summarize_results(query_dict, analysis_name):
 
     sc = SparkContext()
     sqlContext = SQLContext(sc)
 
     df = sqlContext.read.csv('hdfs:///user/hadoop/output/', sep=',', inferSchema=True)
+
+    if analysis_name == 'fires':
+        # remove time stamp from date
+        from_pattern = 'MM/dd/yyyy h:mm:ss'
+        to_pattern = 'MM/dd/yyyy'
+
+        df = df.withColumn('_c2', from_unixtime(unix_timestamp(df['_c2'], from_pattern), to_pattern))
+
     df.registerTempTable("my_table")
 
     for qry_id, qry_params in query_dict.iteritems():
@@ -119,11 +127,11 @@ def summarize_results(query_dict, full_export):
         # delete this to save space-- not much room in hadoop machine local disk
         os.remove(local_csv)
 
-    if full_export:
+    if analysis_name in ['glad', 'terrai']:
 
         today = datetime.datetime.today().strftime('%Y%m%d')
 
-        if full_export == 'glad':
+        if analysis_name == 'glad':
 
             # find date of day 180 days ago
             today_date = datetime.date.today()
@@ -150,15 +158,15 @@ def summarize_results(query_dict, full_export):
             column_aois = [0, 1, 2, 3, 4, 11, 12, 13, 14]
             df_final = df_with_cat.select(*(df_with_cat.columns[i] for i in column_aois))
 
-            s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-{}/'.format(today)
-            s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-glad-summary-{}/'.format(today)
-
         # terrai - polyname field is _c4 in this case
-        else:
+        elif analysis_name == 'terrai':
             df_final = df.filter(df['_c4'] == 'gadm28')
 
-            s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-{}/'.format(full_export, today)
-            s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-summary-{}/'.format(full_export, today)
+        else:
+            raise ValueError('unknown analysis name: {}'.format(analysis_name))
+
+        s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-{}/'.format(analysis_name, today)
+        s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-summary-{}/'.format(analysis_name, today)
 
         # write hadoop output in parts to S3
         df_final.write.csv(s3_temp_dir)
