@@ -82,6 +82,11 @@ def write_properties(config_file, data_dir, s3_job_url):
     # Sort the keys to this dict (1, 2, 3, etc) and return the s3 outputs in that order
     output_s3_list = [output_s3_dict[k] for k in sorted(output_s3_dict.keys())]
 
+    # if no queries were specified, likely doing all processing in scala
+    # still want to return an output though
+    if not output_s3_list:
+        output_s3_list = ['{0}/output.csv'.format(s3_job_url)]
+
     return output_s3_list
 
 

@@ -19,16 +19,23 @@ from pyspark.sql.types import *
 
 def main():
 
-    run_spark_pip()
+    app_properties_s3_url = sys.argv[1]
+
+    run_spark_pip(app_properties_s3_url)
 
     query_dict, full_export = build_query_dict()
 
-    summarize_results(query_dict, full_export)
+    if query_dict or full_export:
+        summarize_results(query_dict, full_export)
+
+    # if we haven't specified a SQL statement, likely doing all
+    # our processing within scala
+    else:
+        export_result(app_properties_s3_url)
 
 
-def run_spark_pip():
+def run_spark_pip(app_properties_s3_url):
 
-    app_properties_s3_url = sys.argv[1]
     target_zip_s3_url = r's3://gfw2-data/alerts-tsv/target_0.3.zip'
 
     for download in [app_properties_s3_url, target_zip_s3_url]:
@@ -174,6 +181,18 @@ def summarize_results(query_dict, full_export):
     sc.stop()
 
 
+def export_result(s3_app_properties_url):
+
+    # in this instance, we've written a complete table to hdfs
+    # no need to postprocess / further summarize
+    # first, copy it locally
+    subprocess.check_call(['hdfs', 'dfs', '-getmerge', 'output/', 'out.csv'])
+
+    # then copy it up to s3
+    s3_output = s3_app_properties_url.replace('application.properties', 'output.csv')
+    subprocess.check_call(['aws', 's3', 'mv', 'out.csv', s3_output])
+
+
 def value_to_category(value):
     if value == 2:
         return 'unconfirmed'
@@ -181,6 +200,7 @@ def value_to_category(value):
         return 'confirmed'
     else:
         return '-9999'
+
 
 if __name__ == '__main__':
     main()
