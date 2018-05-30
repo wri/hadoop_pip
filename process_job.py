@@ -11,7 +11,7 @@ os.environ["SPARK_HOME"] = r"/usr/lib/spark"
 for path in [r'/usr/lib/spark/python/', r'/usr/lib/spark/python/lib/py4j-src.zip']:
     sys.path.append(path)
 
-from pyspark import SparkContext
+from pyspark import SparkContext, SparkConf
 from pyspark.sql import SQLContext
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
@@ -93,6 +93,10 @@ def build_query_dict():
 
 
 def summarize_results(query_dict, full_export):
+
+    # use yarn to manage the process, with 9g of mem per executor
+    conf = SparkConf().setMaster("yarn")
+    conf.set("spark.executor.memory","9g")
 
     sc = SparkContext()
     sqlContext = SQLContext(sc)
