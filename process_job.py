@@ -141,17 +141,16 @@ def summarize_results(query_dict, full_export):
             glad_back_date = today_date - datetime.timedelta(days=181)
             glad_back_date_jd = glad_back_date.timetuple().tm_yday
 
-            # filtered = df.filter(df['_c3'] > 2016)
-
             # check of that day is in the current year
             if today_date.year == glad_back_date.year:
-                filtered = df.filter((df['_c8'] == 'gadm28') & (df['_c4'] > glad_back_date_jd))
+                filtered = df.filter((df['_c8'] == 'admin') & (df['_c4'] > glad_back_date_jd) &
+                                     (df['_c3'] == today_date.year))
 
             # otherwise select all dates in the current year, and only those in previous year that are > the julian_day
             else:
                 filtered = df.filter(
-                    ((df['_c8'] == 'gadm28') & (df['_c3'] == today_date.year - 1) & (df['_c4'] > glad_back_date_jd)) |
-                    ((df['_c8'] == 'gadm28') & (df['_c3'] == today_date.year))
+                    ((df['_c8'] == 'admin') & (df['_c3'] == today_date.year - 1) & (df['_c4'] > glad_back_date_jd)) |
+                    ((df['_c8'] == 'admin') & (df['_c3'] == today_date.year))
                 )
 
             udfValueToCategory = udf(value_to_category, StringType())
@@ -166,7 +165,7 @@ def summarize_results(query_dict, full_export):
 
         # terrai - polyname field is _c4 in this case
         else:
-            df_final = df.filter(df['_c4'] == 'gadm28')
+            df_final = df.filter(df['_c4'] == 'admin')
 
             s3_temp_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-{}/'.format(full_export, today)
             s3_dest_dir = r's3://gfw2-data/alerts-tsv/temp/output-{}-summary-{}/'.format(full_export, today)
