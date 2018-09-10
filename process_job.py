@@ -107,51 +107,27 @@ def summarize_results(query_dict, full_export):
     for qry_id, qry_params in query_dict.iteritems():
 
         spark_query = sqlContext.sql(qry_params['sql'])
+        spark_query.write.format("csv").save("spark_query")
 
-        local_csv = r'/home/hadoop/query1.csv'
-
-        with open(local_csv, 'w') as output:
-            csv_writer = csv.writer(output)
-
-            # Write CSV header if it exists
-            try:
-                header_text = qry_params['header_row']
-                header_row = [s.strip() for s in header_text.split(',')]
-                csv_writer.writerow(header_row)
-
-            except KeyError:
-                pass
-
-            for out_row in spark_query.collect():
-                csv_writer.writerow(out_row)
-
+        # after writing, need to merge this
+        local_csv = '/home/hadoop/query1.csv'
+        subprocess.check_call(['hdfs', 'dfs', '-getmerge', 'spark_query/', local_csv])
+        
+        # then copy it up to s3
         subprocess.check_call(['aws', 's3', 'cp', local_csv, qry_params['s3_output']])
 
         # delete this to save space-- not much room in hadoop machine local disk
         os.remove(local_csv)
+
+        # and delete the hdfs data too
+        subprocess.check_call(['hdfs', 'dfs', '-rm', '-r', 'spark_query/'])
 
     if full_export:
 
         today = datetime.datetime.today().strftime('%Y%m%d')
 
         if full_export == 'glad':
-
-            # find date of day 180 days ago
-            today_date = datetime.date.today()
-            glad_back_date = today_date - datetime.timedelta(days=181)
-            glad_back_date_jd = glad_back_date.timetuple().tm_yday
-
-            # check of that day is in the current year
-            if today_date.year == glad_back_date.year:
-                filtered = df.filter((df['_c8'] == 'admin') & (df['_c4'] > glad_back_date_jd) &
-                                     (df['_c3'] == today_date.year))
-
-            # otherwise select all dates in the current year, and only those in previous year that are > the julian_day
-            else:
-                filtered = df.filter(
-                    ((df['_c8'] == 'admin') & (df['_c3'] == today_date.year - 1) & (df['_c4'] > glad_back_date_jd)) |
-                    ((df['_c8'] == 'admin') & (df['_c3'] == today_date.year))
-                )
+            filtered = df.filter(df['_c8'] == 'admin')
 
             udfValueToCategory = udf(value_to_category, StringType())
             df_with_cat = filtered.withColumn("category", udfValueToCategory("_c2"))
