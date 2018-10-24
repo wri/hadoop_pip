@@ -4,7 +4,7 @@ import time
 from utilities import emr, create_s3_dir
 
 
-def run(config_file_list):
+def run(config_file_list, **kwargs):
 
     cluster_id = None
     all_steps_output_list = []
@@ -17,7 +17,7 @@ def run(config_file_list):
         # If we don't have a cluster yet, start one
         if not cluster_id:
             # Start emr and wait until it's read
-            cluster_id = emr.start(s3_app_folder)
+            cluster_id = emr.start(s3_app_folder, **kwargs)
 
         step_id = emr.add_step(cluster_id, s3_app_folder)
 

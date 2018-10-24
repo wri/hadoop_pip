@@ -3,7 +3,7 @@ import subprocess
 import util
 
 
-def start(s3_app_folder, instance_type='m3.xlarge', instance_count=4):
+def start(s3_app_folder, instance_type='m3.xlarge', instance_count=6):
 
     bootstrap_script = r"{0}/bootstrap.sh".format(s3_app_folder)
 
@@ -11,7 +11,7 @@ def start(s3_app_folder, instance_type='m3.xlarge', instance_count=4):
            '--release-label', 'emr-5.5.0', '--applications', 'Name=Spark', 'Name=Hadoop',
            '--ec2-attributes', 'KeyName=chofmann-wri',
            '--instance-groups', 'InstanceGroupType=MASTER,InstanceCount=1,InstanceType=m3.xlarge',
-           'InstanceGroupType=CORE,InstanceCount={},InstanceType=m3.xlarge,BidPrice=4'.format(str(instance_count))
+           'InstanceGroupType=CORE,InstanceCount={},InstanceType={},BidPrice=4'.format(str(instance_count), instance_type),
            '--use-default-roles', '--region', 'us-east-1',
            '--log-uri', s3_app_folder,
            '--enable-debugging',
