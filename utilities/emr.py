@@ -3,7 +3,7 @@ import subprocess
 import util
 
 
-def start(s3_app_folder, instance_type='m3.xlarge', instance_count=6):
+def start(s3_app_folder, instance_type='m3.2xlarge', instance_count=3):
 
     bootstrap_script = r"{0}/bootstrap.sh".format(s3_app_folder)
 
