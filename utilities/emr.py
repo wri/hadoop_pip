@@ -3,11 +3,11 @@ import subprocess
 import util
 
 
-def start(s3_app_folder, instance_type='m3.2xlarge', instance_count=3):
+def start(s3_app_folder, instance_type='m3.2xlarge', instance_count=3, name='Spark PIP cluster'):
 
     bootstrap_script = r"{0}/bootstrap.sh".format(s3_app_folder)
 
-    cmd = ['aws', 'emr', 'create-cluster', '--name', 'Spark PIP cluster',
+    cmd = ['aws', 'emr', 'create-cluster', '--name', name,
            '--release-label', 'emr-5.5.0', '--applications', 'Name=Spark', 'Name=Hadoop',
            '--ec2-attributes', 'KeyName=chofmann-wri',
            '--instance-groups', 'InstanceGroupType=MASTER,InstanceCount=1,InstanceType=m3.xlarge',
