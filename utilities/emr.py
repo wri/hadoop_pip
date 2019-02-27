@@ -9,11 +9,12 @@ def start(s3_app_folder, instance_type='m3.2xlarge', instance_count=3, name='Spa
 
     cmd = ['aws', 'emr', 'create-cluster', '--name', name,
            '--release-label', 'emr-5.5.0', '--applications', 'Name=Spark', 'Name=Hadoop',
-           '--ec2-attributes', 'KeyName=chofmann-wri',
+           '--ec2-attributes', 'KeyName=tmaschler_wri2',
            '--instance-groups', 'InstanceGroupType=MASTER,InstanceCount=1,InstanceType=m3.xlarge',
            'InstanceGroupType=CORE,InstanceCount={},InstanceType={},BidPrice=4'.format(str(instance_count), instance_type),
            '--use-default-roles', '--region', 'us-east-1',
-           '--log-uri', s3_app_folder,
+           '--log-uri', s3_app_folder, '--tags', 'Project=Global Forest Watch', 'Project Lead=Thomas Maschler',
+           'Pricing=On Demand', 'Job=Compute country stats - {}'.format(name), 'Name={}'.format(name),
            '--enable-debugging',
            '--bootstrap-action', 'Path="{0}"'.format(bootstrap_script)]
 
