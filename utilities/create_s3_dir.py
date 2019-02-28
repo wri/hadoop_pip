@@ -2,6 +2,7 @@ import os
 import subprocess
 import uuid
 import shutil
+import errno
 from ConfigParser import SafeConfigParser
 
 
@@ -105,7 +106,7 @@ def create(config_file):
     guid = str(uuid.uuid4())
 
     data_dir = os.path.join(root_dir, 'data', guid)
-    os.mkdir(data_dir)
+    mkdir_p(data_dir)
 
     s3_job_url = r's3://gfw2-data/alerts-tsv/hadoop-jobs/{0}'.format(guid)
 
@@ -119,3 +120,14 @@ def create(config_file):
     subprocess.check_call(cmd)
 
     return s3_job_url, s3_output
+
+
+def mkdir_p(path):
+    # copied from https://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
