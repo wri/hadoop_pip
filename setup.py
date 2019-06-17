@@ -9,7 +9,7 @@ setup(
     author="Charlie Hoffman",
     license="MIT",
     install_requires=[
-        "awscli",
+        "awscli<=1.17.0,>=1.16.176",
     ],
     scripts=[
         "hadoop_pip/run_pip.py",
