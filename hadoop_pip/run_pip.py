@@ -1,7 +1,7 @@
 import argparse
 import time
 
-from utilities import emr, create_s3_dir
+from hadoop_pip.utilities import emr, create_s3_dir
 
 
 def run(config_file_list, **kwargs):
