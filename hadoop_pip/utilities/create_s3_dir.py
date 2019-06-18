@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import uuid
 import shutil
@@ -102,17 +103,17 @@ def copy_process_jobs(root_dir, data_dir):
 
 def create(config_file):
 
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     guid = str(uuid.uuid4())
 
-    data_dir = os.path.join(root_dir, 'data', guid)
+    data_dir = os.path.join(sys.prefix, 'data', guid)
     mkdir_p(data_dir)
 
     s3_job_url = r's3://gfw2-data/alerts-tsv/hadoop-jobs/{0}'.format(guid)
 
     s3_output = write_properties(config_file, data_dir, s3_job_url)
 
-    copy_process_jobs(root_dir, data_dir)
+    copy_process_jobs(sys.prefix, data_dir)
 
     write_bootstrap_file(data_dir, s3_job_url)
 
