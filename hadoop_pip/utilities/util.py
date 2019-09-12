@@ -1,3 +1,4 @@
+import click
 import json
 import subprocess
 
@@ -11,7 +12,7 @@ def run_subprocess(cmd):
     for line in iter(p.stdout.readline, b''):
         subprocess_list.append(line.strip())
 
-    print '\n'.join(subprocess_list)
+    click.echo('\n'.join(subprocess_list))
 
     return subprocess_list
 

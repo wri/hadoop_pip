@@ -1,1 +1,2 @@
-awscli
+boto3~=1.9.225
+click~=7.0
