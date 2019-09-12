@@ -1,11 +1,12 @@
+import boto3
+import click
 import os
-import sys
-import subprocess
 import uuid
 import shutil
 import errno
 from ConfigParser import SafeConfigParser
 
+S3 = boto3.client('s3')
 
 def read_config(config):
 
@@ -51,7 +52,7 @@ def add_query(section_dict, section, key, prop_file, s3_job_url):
         output_file = section_dict[output_key]
 
     except KeyError:
-        print 'No output file specified for query{0}, defaulting to output{0}.csv'.format(query_id)
+        click.echo('No output file specified for query{0}, defaulting to output{0}.csv'.format(query_id))
 
         output_file = '{0}/output{1}.csv'.format(s3_job_url, query_id)
         prop_file.write('\n{0}.output{1}={2}'.format(section, query_id, output_file))
@@ -103,22 +104,27 @@ def copy_process_jobs(root_dir, data_dir):
 
 def create(config_file):
 
-    root_dir = sys.prefix
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # sys.prefix
     guid = str(uuid.uuid4())
 
     data_dir = os.path.join(root_dir, 'data', guid)
     mkdir_p(data_dir)
 
-    s3_job_url = r's3://gfw2-data/alerts-tsv/hadoop-jobs/{0}'.format(guid)
+    bucket = "gfw2-data"
+    prefix = 'alerts-tsv/hadoop-jobs/{0}'.format(guid)
+    s3_job_url = "s3://{}/{}".format(bucket, prefix)
 
     s3_output = write_properties(config_file, data_dir, s3_job_url)
 
-    copy_process_jobs(sys.prefix, data_dir)
+    copy_process_jobs(root_dir, data_dir)
 
     write_bootstrap_file(data_dir, s3_job_url)
 
-    cmd = ['aws', 's3', 'cp', '--recursive', data_dir, s3_job_url]
-    subprocess.check_call(cmd)
+    click.echo("Upload to S3")
+    for (root, dirs, files) in os.walk(data_dir):
+        for f in files:
+            file_name = os.path.join(root,f).replace("\\", "/")
+            S3.upload_file(file_name, bucket, "{}/{}".format(prefix, f))
 
     return s3_job_url, s3_output
 

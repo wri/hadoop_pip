@@ -1,15 +1,23 @@
-import argparse
 import time
+import click
 
 from hadoop_pip.utilities import emr, create_s3_dir
 
 
-def run(config_file_list, **kwargs):
+@click.command()
+@click.option('--instance_count', default=1, help='number of worker instances')
+@click.option('--name', help='cluster name')
+@click.argument('config_files', nargs=-1)
+def cli(config_files, **kwargs):
+    run(config_files, **kwargs)
+
+
+def run(config_files, **kwargs):
 
     cluster_id = None
     all_steps_output_list = []
 
-    for config in config_file_list:
+    for config in config_files:
 
         # # Write application.properties, bootstrap.sh, and process_job.py to s3_app_folder
         s3_app_folder, s3_output_list = create_s3_dir.create(config)
@@ -38,7 +46,7 @@ def run(config_file_list, **kwargs):
             else:
                 time.sleep(60)
 
-            print 'Step {0} has status {1}'.format(step_id, step_status)
+            click.echo('Step {0} has status {1}'.format(step_id, step_status))
 
     emr.terminate(cluster_id)
 
@@ -46,9 +54,5 @@ def run(config_file_list, **kwargs):
 
 
 if __name__ == '__main__':
+    cli()
 
-    parser = argparse.ArgumentParser(description='Run point and polygon using AWS EMR')
-    parser.add_argument('--config', '-c', nargs='*', help='config file of parameters', required=True)
-    args = parser.parse_args()
-
-    run(args.config)
